@@ -1,7 +1,10 @@
 # AdonAi-insights-pub 
+![Logo](assets/adonai_logo.png)
 
 This repo contains code snippets to enable you to use our APIs! 
 
+## Releases
+You can find the release documentation in the [wiki](https://github.com/Datawhispercouk/AdonAi-insights-pub/wiki/Releases)!  
 
 ## Setup - chatbot_api_wrappers.py
 1. (Optional step) Create a new python environment using pipenv or conda. To create using conda run the below command: 
