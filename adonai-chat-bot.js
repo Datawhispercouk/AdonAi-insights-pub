@@ -48,7 +48,10 @@
       const url = `${_host}/session/createsession`;
       const response = await fetch(url, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${access_token}` },
+        headers: { 
+          Authorization: `Bearer ${access_token}`,
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({})
       });
 
