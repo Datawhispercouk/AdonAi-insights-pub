@@ -92,3 +92,59 @@ declare global {
   }
 }
 ```
+
+## Widget setup
+1. Import style to the app:
+    ```html
+    <link rel="stylesheet" href="STYLE_SHEET_URL" />
+    ```
+
+2. Add module federation config:
+    ```javascript
+    new ModuleFederationPlugin({
+        name: 'Insights',
+        remotes: {
+            insights: `Insights@REMOTE_ENTRY_URL`,
+        },
+    })
+    ```
+
+3. Import the component:
+   ```javascript
+   const FederatedInsightsBot = React.lazy(() => import('insights/InsightsBot'));
+   ```
+
+4. Wrap the remote React component using Suspense:
+   ```javascript
+   <React.Suspense fallback={<></>}>
+      <FederatedInsightsBot 
+        authorization={{
+          APIKey: 'APIKey',
+          MachineId: 'MachineId',
+          Password: 'Password'
+        }}
+        vdsId="vdsID"
+      />
+   </React.Suspense>
+   ```
+
+5. OPTIONAL: Declare module globally:
+   ```typescript jsx
+   declare module 'insights/InsightsBot' {
+      interface Authorization {
+        MachineId: string;
+        Password: string;
+        APIKey: string;
+      }
+   
+      const FederatedInsightsBot: React.ComponentType<{
+         authorization: Authorization,
+         vdsId: string;
+         rootUrl?: string;
+         chatClassName?: string;
+         iconClassName?: string;
+      }>;
+
+      export default FederatedInsightsBot;
+   }
+   ```
