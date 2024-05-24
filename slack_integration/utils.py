@@ -137,13 +137,14 @@ def create_structured_response_block(response_string, user_id):
     if response_string["figure"] != "":
         image_filename = create_graph(response_string["figure"], user_id)
         if image_filename:
+            base_url = os.environ.get("BASE_URL")
             graph_section = {
                 "type": "image",
                     "title": {
                         "type": "plain_text",
                         "text": "Graph:"
                     },
-                    "image_url": f"https://e6b4-122-171-17-67.ngrok-free.app/share/{image_filename}",
+                    "image_url": f"{base_url}/share/{image_filename}",
                     "alt_text": "graph"
             }
             response_block.append(graph_section)
