@@ -14,7 +14,7 @@ channel_session_id = {}
 question_count = 0
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'LLMChatBotSlackChatApp'
+app.config['SECRET_KEY'] = os.environ.get("FLASK_APP_SECRET_KEY")
 
 SLACK_SIGNING_SECRET = os.environ.get("SLACK_SIGNING_SECRET")
 slack_token = os.environ.get("SLACK_BOT_TOKEN")

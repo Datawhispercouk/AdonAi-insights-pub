@@ -15,20 +15,17 @@ To create using python on Windows run the below command:
 ```
 python -m venv venv
 .\venv\Scripts\activate
-
 ```
 
 2. Install the libraries required using `requirements.txt` file using the command:
 
 ```
 pip install -r requirements.txt
-
 ```
 3. Install `orca` for plotly to convert graphs to images using the command:
 
 ```
 conda install plotly-orca
-
 ```
 
 4. Create a .env file and add the following sensitive credentials in it:
@@ -42,14 +39,13 @@ BASE_API=<BASE URL OF APIs>
 ACCESS_TOKEN=<ACCESS TOKEN OBTAINED AFTER LOGGING IN TO THE API>
 VDS_ID=<YOUR VDS ID>
 BASE_FLASK_APP_URL=<YOUR FLASK APP BASE URL>
-
+FLASK_APP_SECRET_KEY=<YOUR SECRET KEY>
 ```
 
 5. Run the Flask App using the command:
 
 ```
 python .\app.py
-
 ```
 
 
@@ -93,7 +89,6 @@ python .\app.py
 4. Next, set the **Request URL** to:
 ```
 <YOUR FLASK SERVER BASE URL>/slack/events
-
 ```
 
 Note that you'll need to implement your own server to host the flask app for this step.
@@ -110,24 +105,28 @@ Note that you'll need to implement your own server to host the flask app for thi
 - Command: `/start`
 - Request URL: `<Your FLASK SERVER BASE URL>/slack/session/start`
 - Short Description: `Start an API channel session`
+
 Click on **Save**
 
 4. Add `/exit` command:
 - Command: `/exit`
 - Request URL: `<Your FLASK SERVER BASE URL>/slack/session/exit`
 - Short Description: `End an API channel session`
+
 Click on **Save**
 
 5. Add `/start-private` command:
 - Command: `/start-private`
 - Request URL: `<Your FLASK SERVER BASE URL>/slack/session/start-private`
 - Short Description: `Start a private API channel session`
+
 Click on **Save**
 
 6. Add `/question` command:
 - Command: `/question`
 - Request URL: `<Your FLASK SERVER BASE URL>/slack/question`
 - Short Description: `Ask question to the channel API`
+
 Click on **Save**
 
 To allow users to send Slash commands and messages from the messages tab of the Chat App:
@@ -142,7 +141,6 @@ Within **App Home**, toggle **Message Tab** to ON and click on the **Allow users
 2. Next, set the **Request URL** to:
 ```
 <YOUR FLASK SERVER BASE URL>/slack/interactions
-
 ```
 3. Click on **Save Changes**
 
@@ -164,6 +162,5 @@ Note that you'll need to implement your own server to host the flask app for thi
 ```
 Example:
     /question How to setup wifi?
-
 ```
 - `/exit` - Ends the current session.
