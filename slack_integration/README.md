@@ -25,7 +25,7 @@ pip install -r requirements.txt
 3. Install `orca` for plotly to convert graphs to images using the command:
 
 ```
-conda install plotly-orca
+conda install orca
 ```
 
 4. Create a .env file and add the following sensitive credentials in it:
