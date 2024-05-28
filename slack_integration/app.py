@@ -32,6 +32,8 @@ def handle_start_session():
     data = request.form
     channel_id = data.get("channel_id")
     initial_blocks = get_initial_block()
+    if question_count != 0:
+        slack_client.chat_postMessage(channel=channel_id, text=f"I have answered {question_count} questions successfully so far. How can I help you?")
     slack_client.chat_postMessage(channel=channel_id, blocks=initial_blocks)
     return Response(), 200
 
@@ -202,14 +204,12 @@ def slack_interactions():
             session_id = getSessionID()
             channel_chosen_api[channel_id] = value
             channel_session_id[channel_id] = session_id
-            if question_count != 0:
-                slack_client.chat_postMessage(channel=channel_id, text=f"I have answered {question_count} questions successfully so far. How can I help you?")
             update_message(channel_id, ts, "text", f"You have opted for {value}!")
     return Response(status=200)
 
 @app.route('/share/<filename>')
 def share_file(filename):
-  file_path = f"{filename}"
+  file_path = f"./images/{filename}"
   try:
     return send_file(file_path, as_attachment=True)
   except FileNotFoundError:

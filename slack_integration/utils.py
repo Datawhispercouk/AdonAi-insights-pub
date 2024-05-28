@@ -125,7 +125,7 @@ def create_graph(data, user_id):
         print("figure created:")
         image_data = pio.to_image(fig, format='jpg', engine="orca", scale=1)
         print("image_data created")
-        with open(filename, 'wb') as f:
+        with open(f"./images/{filename}", 'wb') as f:
             f.write(image_data)
         return filename
     except Exception as e:
@@ -136,8 +136,8 @@ def create_structured_response_block(response_string, user_id):
     response_block = []
     if response_string["figure"] != "":
         image_filename = create_graph(response_string["figure"], user_id)
+        base_url = os.environ.get("BASE_FLASK_APP_URL")
         if image_filename:
-            base_url = os.environ.get("BASE_URL")
             graph_section = {
                 "type": "image",
                     "title": {
@@ -277,7 +277,7 @@ def get_rating_block(ts, choice):
                         },
                         {
                             "type": "button",
-                            "style": "primary",
+                            "style": "danger",
                             "text": {
                                 "type": "plain_text",
                                 "text": "👎 Not Happy"
@@ -336,7 +336,7 @@ def get_initial_block():
         "type": "section",
         "text": {
             "type": "plain_text",
-            "text": "Hi there, choose an API to proceed with. \n\n",
+            "text": "Select your chat channel: \n\n",
         }
     },
     {
