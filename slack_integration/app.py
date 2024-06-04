@@ -93,6 +93,7 @@ def handle_exit_session():
     if channel_chosen_api.get(channel_id):
         channel_chosen_api.pop(channel_id, None)
         channel_session_id.pop(channel_id, None)
+        channel_vds.pop(channel_id, None)
         slack_client.chat_postMessage(channel=channel_id, text="Chat session closed")
         feedback_block = get_feedback_block()
         response = slack_client.chat_postMessage(channel=channel_id, blocks=feedback_block)
