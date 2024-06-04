@@ -9,29 +9,57 @@ from datetime import datetime
 
 load_dotenv('.env')
 
-access_token = os.environ.get("ACCESS_TOKEN")
+channel_access_token = {}
 
-def signin():
-    global access_token
+def signin(username, password, channel_id):
+    global channel_access_token
     payload = {
-        "username": os.environ.get("USERNAME"),
-        "password": os.environ.get("PASSWORD")
+        "username": username,
+        "password": password
     }
     api_url = os.environ.get("BASE_API") + "/user/login"
     response = requests.post(api_url, json=payload)
     if response.status_code == 200:
         response_data = response.json()
-        update_access_token(response_data.get('access_token'))
         access_token = response_data.get('access_token')
-        return "API call successful"
+        channel_access_token[channel_id] = access_token
+
+        info_response_data = get_user_info(channel_id)
+        if info_response_data == "Unauthorized":
+            return None
+        elif info_response_data != None:
+            vds_id = info_response_data["Division"]["DefaultVdsID"]
+            username = info_response_data["UserName"]
+            vds_name = info_response_data["Division"]["DefaultVds"]
+            return [vds_id, username, vds_name]
+        else:
+            return "API call failed"
     else:
         return "API call failed"
     
-def getSessionID():
-    signin()
-    global access_token
+def get_user_info(channel_id):
+    global channel_access_token
+    access_token = channel_access_token[channel_id]
+    info_api_url = os.environ.get("BASE_API") + "/user/user-info"
+    headers = {
+        "Authorization": f"Bearer {access_token}"
+    }
+    info_response = requests.get(info_api_url, headers=headers)
+    if info_response.status_code == 200:
+        info_response_data = info_response.json()
+        return info_response_data
+    elif info_response.status_code == 401:
+        return "Unauthorized"
+    else:
+        print(info_response.text)
+        return None 
+
+    
+def getSessionID(vds, channel_id):
+    global channel_access_token
+    access_token = channel_access_token[channel_id]
     payload = {
-        "vds_id": os.environ.get("VDS_ID")
+        "vds_id": vds
     }
     headers = {
         "Authorization": f"Bearer {access_token}"
@@ -42,10 +70,14 @@ def getSessionID():
         response_data = response.json()
         print(response_data.get('session_id'))
         return response_data.get('session_id')
+    elif response.status_code == 401:
+        return "Unauthorized"
     else:
         return "API call failed"
 
-def structured_api_call(question, session_id):
+def structured_api_call(question, session_id, channel_id):
+    global channel_access_token
+    access_token = channel_access_token[channel_id]
     payload = {
         "question": question
     }
@@ -59,14 +91,14 @@ def structured_api_call(question, session_id):
         response_data = response.json()
         return (response_data.get('result'))
     elif response.status_code == 401:
-        signin()
-        result = structured_api_call(question, session_id)
-        return result
+        return "Unauthorized"
     else:
         print(response.text)
         return None  
    
-def rag_api_call(question, session_id):
+def rag_api_call(question, session_id, channel_id):
+    global channel_access_token
+    access_token = channel_access_token[channel_id]
     payload = {
         "question": question
     }
@@ -80,24 +112,33 @@ def rag_api_call(question, session_id):
         response_data = response.json()
         return (response_data.get('result'))
     elif response.status_code == 401:
-        signin()
-        result = rag_api_call(question, session_id)
-        return result
+        return "Unauthorized"
     else:
         print("Failed")
         return None
+    
+def get_vds_list(channel_id):
+    global channel_access_token
+    access_token = channel_access_token[channel_id]
+    try:
+        print("API called")
+        headers = {
+            "Authorization": f"Bearer {access_token}"
+        }
+        api_url = os.environ.get("BASE_API") + f'/vdsservice/vds/list'
 
-def update_access_token(access_token):
-    dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
-    with open(dotenv_path, 'r') as file:
-        lines = file.readlines()
-    with open(dotenv_path, 'w') as file:
-        for line in lines:
-            if line.startswith('ACCESS_TOKEN='):
-                file.write(f'ACCESS_TOKEN={access_token}\n')
-            else:
-                file.write(line)
-    load_dotenv('.env')
+        response = requests.get(api_url, headers=headers)
+        if response.status_code == 200:
+            response_data = response.json()
+            return(response_data.get('results'))
+        elif response.status_code == 401:
+            return "Unauthorized"
+        else:
+            print("Failed")
+            return None
+    except Exception as e:
+        print(e)
+        return None
 
 def create_table_string(data_points_str: str):
     try:
@@ -125,7 +166,7 @@ def create_graph(data, user_id):
         print("figure created:")
         image_data = pio.to_image(fig, format='jpg', engine="orca", scale=1)
         print("image_data created")
-        with open(filename, 'wb') as f:
+        with open(f"./images/{filename}", 'wb') as f:
             f.write(image_data)
         return filename
     except Exception as e:
@@ -136,8 +177,8 @@ def create_structured_response_block(response_string, user_id):
     response_block = []
     if response_string["figure"] != "":
         image_filename = create_graph(response_string["figure"], user_id)
+        base_url = os.environ.get("BASE_FLASK_APP_URL")
         if image_filename:
-            base_url = os.environ.get("BASE_URL")
             graph_section = {
                 "type": "image",
                     "title": {
@@ -149,7 +190,7 @@ def create_structured_response_block(response_string, user_id):
             }
             response_block.append(graph_section)
 
-    if response_string["data_points"] != "":
+    if response_string["data_points"] != "" and response_string["data_points"] != {}:
         data_points_str = json.loads(response_string["data_points"])
         table_string = create_table_string(data_points_str)
         if table_string != None:
@@ -277,7 +318,7 @@ def get_rating_block(ts, choice):
                         },
                         {
                             "type": "button",
-                            "style": "primary",
+                            "style": "danger",
                             "text": {
                                 "type": "plain_text",
                                 "text": "👎 Not Happy"
@@ -336,7 +377,7 @@ def get_initial_block():
         "type": "section",
         "text": {
             "type": "plain_text",
-            "text": "Hi there, choose an API to proceed with. \n\n",
+            "text": "Select your chat channel: \n\n",
         }
     },
     {
@@ -366,6 +407,77 @@ def get_initial_block():
     ]
 
     return initial_blocks
+
+def get_select_vds_block(senario, channel_id):
+    try:
+        vds_options = []
+
+        select_vds_block = [
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "plain_text",
+                        "text": "Select your VDS: \n\n"
+                    }
+                },
+                {
+                    "type": "actions",
+                    "block_id": "vds_select",
+                    "elements": [
+                        {
+                            "type": "static_select",
+                            "placeholder": {
+                                "type": "plain_text",
+                                "text": "Select VDS"
+                            },
+                            "options": [],
+                            "action_id": "selected_vds"
+                        },
+                        {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "Select"
+                            },
+                            "value": senario,
+                            "action_id": "select_vds"
+                        }
+                    ]
+                }
+            ]
+            
+        vds_data = get_vds_list(channel_id)
+        if vds_data == "Unauthorized":
+            return "Unauthorized"
+        elif vds_data != None:
+            for vds in vds_data:
+                print("VDS:")
+                print(vds)
+                title = vds.get("title")
+                id = vds.get("id")
+                option = {
+                    "text": {
+                        "type": "plain_text",
+                        "text": f"{title} ({id})"
+                    },
+                    "value": f"{id}"
+                }
+                vds_options.append(option)
+
+            print("VDS OPTIONS: ")
+            print(vds_options)
+
+            select_vds_block[1]["elements"][0]["options"] = vds_options
+
+            # print("VDS FINAL DATA: ")
+            # print(select_vds_block)
+
+            return select_vds_block
+        else:
+            return None
+    except Exception as e:
+        print(e)
+        return None
 
 def get_feedback_block():
     feedback_block = [
