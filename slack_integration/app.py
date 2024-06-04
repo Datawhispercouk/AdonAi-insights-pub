@@ -129,7 +129,7 @@ def handle_info():
             slack_client.chat_postMessage(channel=channel_id, text=response_text)
             slack_client.chat_postMessage(channel=channel_id, blocks=divider_block)
         else:
-            slack_client.chat_postMessage(channel=channel_id, text="There is no user logged in or session created. Login and create a chat session using commang `/start username password`")
+            slack_client.chat_postMessage(channel=channel_id, text="There is no user logged in or session created. Login and create a chat session using command `/start username password`")
             slack_client.chat_postMessage(channel=channel_id, blocks=divider_block)
         return Response(), 200
     except Exception as e:
