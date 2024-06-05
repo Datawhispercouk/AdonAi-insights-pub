@@ -37,8 +37,10 @@ def handle_start_session():
     if len(words) == 2:
         def handle_login():
             login_data = signin(words[0], words[1], channel_id)
-            if login_data == None:
-                slack_client.chat_postMessage(channel=channel_id, text="Login Failed! Try again ☹️")
+            if login_data == "Invalid Username or password":
+                slack_client.chat_postMessage(channel=channel_id, text="Invalid Username or password! Try again")
+            elif login_data == "Couldn't get User Info":
+                slack_client.chat_postMessage(channel=channel_id, text="Couldn't get User Info! Try again")
             else:
                 channel_vds[channel_id] = login_data[0]
                 slack_client.chat_postMessage(channel=channel_id, text=f"Welcome `{login_data[1]}`, you have logged In successfully!🎉 Currently Using {login_data[2]} VDS.")

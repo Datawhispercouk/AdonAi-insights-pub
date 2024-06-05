@@ -19,6 +19,7 @@ def signin(username, password, channel_id):
     }
     api_url = os.environ.get("BASE_API") + "/user/login"
     response = requests.post(api_url, json=payload)
+    print(response.json())
     if response.status_code == 200:
         response_data = response.json()
         access_token = response_data.get('access_token')
@@ -33,9 +34,9 @@ def signin(username, password, channel_id):
             vds_name = info_response_data["Division"]["DefaultVds"]
             return [vds_id, username, vds_name]
         else:
-            return "API call failed"
+            return "Couldn't get User Info"
     else:
-        return "API call failed"
+        return "Invalid Username or password"
     
 def get_user_info(channel_id):
     global channel_access_token
