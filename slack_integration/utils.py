@@ -370,6 +370,21 @@ def get_rag_response_text(response_string):
             link = reference["source"]
             page = reference["page"]
             response_text = response_text + f"{link} (page {page})" + "\n\n"
+    if response_string["result"]["safeguard"] != {}:
+        response_text = response_text + "\n\nSafeguard Checks:\n\nInput Validation:\n\n"
+        for input_validation in response_string["result"]["safeguard"]["input_validation"]:
+            policy = input_validation["policy"]
+            if input_validation["validation_passed"] == True:
+                response_text = response_text + f"✔️ {policy}" + "\n"
+            else:
+                response_text = response_text + f"❌ {policy}" + "\n"
+        response_text = response_text + "\nOutput Validation:\n\n"
+        for output_validation in response_string["result"]["safeguard"]["output_validation"]:
+            policy = output_validation["policy"]
+            if output_validation["validation_passed"] == True:
+                response_text = response_text + f"✔️ {policy}" + "\n"
+            else:
+                response_text = response_text + f"❌ {policy}" + "\n"
     return response_text
 
 def get_initial_block():
