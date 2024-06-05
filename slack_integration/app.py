@@ -37,8 +37,10 @@ def handle_start_session():
     if len(words) == 2:
         def handle_login():
             login_data = signin(words[0], words[1], channel_id)
-            if login_data == None:
-                slack_client.chat_postMessage(channel=channel_id, text="Login Failed! Try again ☹️")
+            if login_data == "Invalid Username or password":
+                slack_client.chat_postMessage(channel=channel_id, text="Invalid Username or password! Try again")
+            elif login_data == "Couldn't get User Info":
+                slack_client.chat_postMessage(channel=channel_id, text="Couldn't get User Info! Try again")
             else:
                 channel_vds[channel_id] = login_data[0]
                 slack_client.chat_postMessage(channel=channel_id, text=f"Welcome `{login_data[1]}`, you have logged In successfully!🎉 Currently Using {login_data[2]} VDS.")
@@ -58,18 +60,23 @@ def handle_vds_change():
     try:
         data = request.form
         channel_id = data.get("channel_id")
-        response = slack_client.chat_postMessage(channel=channel_id, text="Getting list of VDS's available")
-        slack_client.chat_postMessage(channel=channel_id, blocks=divider_block)
-        def handle_vds_change_list_load(channel_id, ts):
-            vds_change_block = get_select_vds_block("vds_change", channel_id)
-            if vds_change_block == "Unauthorized":
-                update_message(channel_id, ts, "text", "Login token has expired. Please Login again using `/start username password`")
-            elif vds_change_block != None:
-                update_message(channel_id, ts, "block", vds_change_block)
-            else:
-                update_message(channel_id, ts, "text", "There was an error while fetching VDS List")
-        thread = Thread(target=handle_vds_change_list_load, args=(channel_id, response["ts"]))
-        thread.start()
+        current_vds = channel_vds.get(channel_id)
+        if current_vds != None:
+            response = slack_client.chat_postMessage(channel=channel_id, text="Getting list of VDS's available")
+            slack_client.chat_postMessage(channel=channel_id, blocks=divider_block)
+            def handle_vds_change_list_load(channel_id, ts):
+                vds_change_block = get_select_vds_block("vds_change", channel_id)
+                if vds_change_block == "Unauthorized":
+                    update_message(channel_id, ts, "text", "Login token has expired. Please Login again using `/start username password`")
+                elif vds_change_block != None:
+                    update_message(channel_id, ts, "block", vds_change_block)
+                else:
+                    update_message(channel_id, ts, "text", "There was an error while fetching VDS List")
+            thread = Thread(target=handle_vds_change_list_load, args=(channel_id, response["ts"]))
+            thread.start()
+        else:
+            slack_client.chat_postMessage(channel=channel_id, text="Currently no session is active. Please choose an API and create a session using command `/start username password`")
+            slack_client.chat_postMessage(channel=channel_id, blocks=divider_block)
         return Response(), 200
     except Exception as e:
         print(e)
@@ -299,11 +306,10 @@ def slack_interactions():
                 channel_chosen_api.pop(channel_id, None)
                 channel_session_id.pop(channel_id, None)
                 update_message(channel_id, ts, "text", f"Selected VDS: {vds_text}")
-                if value == "start":
-                    initial_blocks = get_initial_block()
-                    if question_count != 0:
-                        slack_client.chat_postMessage(channel=channel_id, text=f"I have answered {question_count} questions successfully so far. How can I help you?")
-                    slack_client.chat_postMessage(channel=channel_id, blocks=initial_blocks)
+                initial_block = get_initial_block()
+                if question_count != 0:
+                    slack_client.chat_postMessage(channel=channel_id, text=f"I have answered {question_count} questions successfully so far. How can I help you?")
+                slack_client.chat_postMessage(channel=channel_id, blocks=initial_block)
             else:
                 vds = channel_vds[channel_id]
                 session_id = getSessionID(vds, channel_id)
