@@ -9,7 +9,7 @@ This multi-channel chatbot lets you choose between two AI assistants: a structur
 
 1. (Optional step) Create a new python environment using python or conda. 
 
-To create using python on Windows run the below command:
+To create using conda run the below command:
 
 ```
 conda create -n env_name python=3.11.7 
