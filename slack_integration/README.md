@@ -1,4 +1,3 @@
-
 # Slack Chat App
 
 This multi-channel chatbot lets you choose between two AI assistants: a structured channel providing informative answers with tables, graphs, and text, or a conversational channel offering text-based responses and maintaining a chat history for context.
@@ -10,11 +9,11 @@ This multi-channel chatbot lets you choose between two AI assistants: a structur
 
 1. (Optional step) Create a new python environment using python or conda. 
 
-To create using python on Windows run the below command:
+To create using conda run the below command:
 
 ```
-python -m venv venv
-.\venv\Scripts\activate
+conda create -n env_name python=3.11.7 
+conda activate env_name
 ```
 
 2. Install the libraries required using `requirements.txt` file using the command:
@@ -22,13 +21,8 @@ python -m venv venv
 ```
 pip install -r requirements.txt
 ```
-3. Install `orca` for plotly to convert graphs to images using the command:
 
-```
-conda install orca
-```
-
-4. Create a .env file and add the following sensitive credentials in it:
+3. Create a .env file and add the following sensitive credentials in it:
 
 ```
 SLACK_SIGNING_SECRET=<YOUR SLACK SECRET SIGNING KEY>
@@ -37,15 +31,14 @@ USERNAME=<API LOGIN USERNAME>
 PASSWORD=<API LOGIN PASSWORD>
 BASE_API=<BASE URL OF APIs>
 ACCESS_TOKEN=<ACCESS TOKEN OBTAINED AFTER LOGGING IN TO THE API>
-VDS_ID=<YOUR VDS ID>
 BASE_FLASK_APP_URL=<YOUR FLASK APP BASE URL>
 FLASK_APP_SECRET_KEY=<YOUR SECRET KEY>
 ```
 
-5. Run the Flask App using the command:
+4. Run the Flask App using the command:
 
 ```
-python .\app.py
+gunicorn -b 0.0.0.0:3000 app:app --reload
 ```
 
 
@@ -101,10 +94,12 @@ Note that you'll need to implement your own server to host the flask app for thi
 
  1. Within **Slash Commands**, click on **Create new command**.
  2. Under **Bot Token Scopes**, select **Add an OAuth Scope**.
+
+
  3. Add `/start` command:
 - Command: `/start`
 - Request URL: `<Your FLASK SERVER BASE URL>/slack/session/start`
-- Short Description: `Start an API channel session`
+- Short Description: `Start an API channel session by logging in with a username and password`
 
 Click on **Save**
 
@@ -126,6 +121,20 @@ Click on **Save**
 - Command: `/question`
 - Request URL: `<Your FLASK SERVER BASE URL>/slack/question`
 - Short Description: `Ask question to the channel API`
+
+Click on **Save**
+
+7. Add `/vds-change` command:
+- Command: `/vds-change`
+- Request URL: `<Your FLASK SERVER BASE URL>/slack/vds-change`
+- Short Description: `Change the VDS of the ChatBot`
+
+Click on **Save**
+
+8. Add `/info` command:
+- Command: `/vds-change`
+- Request URL: `<Your FLASK SERVER BASE URL>/slack/info`
+- Short Description: `Get information about the current user, VDS and Session`
 
 Click on **Save**
 
@@ -156,11 +165,75 @@ Note that you'll need to implement your own server to host the flask app for thi
 3. Choose your App and start a conversation.
 ## Commands
 
-- `/start` - Starts a new session and lets the user choose which channel (Structured or RAG) to use.
-- `/question` - Once the session is started, this command is used to ask questions.
+- `/start username password` - Start a new session by loggin in with credentials (Username and Password) and choose which channel (Structured or RAG) to use.
+
+```
+Example:
+    /start test_user test_password
+```
+
+A session is created with the default VDS of the user.
+
+- `/start-private` - To start a private session in the direct message with ChatBot use this command or directly use `/start username password` in the direct message with Chatbot.
+
+- `/question your_question` - Once the session is started, use this command to ask questions.
 
 ```
 Example:
     /question How to setup wifi?
 ```
-- `/exit` - Ends the current session.
+
+- `/info` - View the information about current User, VDS and Session
+
+- `/vds-change` - If you want to change from the default VDS to another, use this command and choose the VDS from the dropdown that appears.
+
+- `/exit` - End the current session.
+
+## Common Errors
+
+### Gunicorn
+
+On running the Flask app using the command:
+
+```
+gunicorn -b 0.0.0.0:3000 app:app --reload
+```
+
+You might get the error:
+
+```
+File "/.../slack_integration/app.py", line 1, in <module>
+    from flask import Flask, request, Response, send_file
+ModuleNotFoundError: No module named 'flask'
+```
+
+This error might occur because `gunicorn` is already `installed globally`. Since the Libraries are installed `inside a virtual environment`, globally installed gunicorn will not be able to access them.
+
+#### Solution
+
+Uninstall the global `gunicorn` using the command outside the virtual environment:
+
+```
+sudo apt remove gunicorn
+```
+
+Now install `gunicorn` inside the virtual environment and the issue must be resolved.
+
+### Plotly Orca
+
+While the graphs in Structured Chat are being converted to image using plotly-orca, this runtime error might occur:
+
+```
+When used on Linux, orca requires an X11 display server, but none was
+detected. Please install Xvfb and configure plotly.py to run orca using Xvfb
+```
+
+#### Solution
+
+Install xvfb using the command:
+
+```
+sudo apt-get install xvfb
+```
+
+This should resolve the issue.
