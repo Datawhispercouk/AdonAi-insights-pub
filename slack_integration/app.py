@@ -5,13 +5,15 @@ from threading import Thread
 from slack_sdk import WebClient
 import json
 from dotenv import load_dotenv
-from utils import getSessionID, structured_api_call, rag_api_call, create_structured_response_block, append_to_json, get_rating_block, send_query_block, get_rag_response_text, get_initial_block, get_feedback_block, get_select_vds_block, signin, get_user_info
+from utils import getSessionID, structured_api_call, rag_api_call, agent_api_call, create_structured_response_block, append_to_json, get_rating_block, send_query_block, get_rag_response_text, get_agent_response_block, get_initial_block, get_feedback_block, get_select_vds_block, signin, get_user_info, download_file_with_consent, upload_file_to_azure, update_message, display_agent_response
 
 load_dotenv('.env')
 
-channel_chosen_api = {}
+channel_chosen_agent = {}
+channel_chosen_team_id = {}
 channel_session_id = {}
 channel_vds = {}
+channel_verbose_status = {}
 question_count = 0
 
 app = Flask(__name__)
@@ -19,8 +21,9 @@ app.config['SECRET_KEY'] = os.environ.get("FLASK_APP_SECRET_KEY")
 
 SLACK_SIGNING_SECRET = os.environ.get("SLACK_SIGNING_SECRET")
 slack_token = os.environ.get("SLACK_BOT_TOKEN")
-
+user_token = os.environ.get("USER_TOKEN")
 slack_client = WebClient(slack_token)
+user_client = WebClient(user_token)
 
 slack_events_adapter = SlackEventAdapter(
     SLACK_SIGNING_SECRET, "/slack/events", app
@@ -31,6 +34,7 @@ bot_id = slack_client.api_call("auth.test")["user_id"]
 @app.route('/slack/session/start', methods=['POST'])
 def handle_start_session():
     data = request.form
+    print(data)
     channel_id = data.get("channel_id")
     text = data.get('text')
     words = text.split()
@@ -46,7 +50,7 @@ def handle_start_session():
                 slack_client.chat_postMessage(channel=channel_id, text=f"Welcome `{login_data[1]}`, you have logged In successfully!🎉 Currently Using {login_data[2]} VDS.")
                 if question_count != 0:
                     slack_client.chat_postMessage(channel=channel_id, text=f"I have answered {question_count} questions successfully so far. How can I help you?")
-                initial_blocks = get_initial_block()
+                initial_blocks = get_initial_block(channel_id)
                 slack_client.chat_postMessage(channel=channel_id, blocks=initial_blocks)
                 slack_client.chat_postMessage(channel=channel_id, blocks=divider_block)
         thread = Thread(target=handle_login)
@@ -82,6 +86,33 @@ def handle_vds_change():
         print(e)
         return Response(), 200
 
+@app.route('/slack/agent-change', methods=['POST'])
+def handle_agent_change():
+    try:
+        data = request.form
+        channel_id = data.get("channel_id")
+        current_agent = channel_chosen_agent.get(channel_id)
+        if current_agent != None:
+            response = slack_client.chat_postMessage(channel=channel_id, text="Getting list of Agents available")
+            slack_client.chat_postMessage(channel=channel_id, blocks=divider_block)
+            def handle_agent_change_list_load(channel_id, ts):
+                agent_change_block = get_initial_block(channel_id)
+                if agent_change_block == "Unauthorized":
+                    update_message(channel_id, ts, "text", "Login token has expired. Please Login again using `/start username password`")
+                elif agent_change_block != None:
+                    update_message(channel_id, ts, "block", agent_change_block)
+                else:
+                    update_message(channel_id, ts, "text", "There was an error while fetching Agents List")
+            thread = Thread(target=handle_agent_change_list_load, args=(channel_id, response["ts"]))
+            thread.start()
+        else:
+            slack_client.chat_postMessage(channel=channel_id, text="Currently no session is active. Please choose an API and create a session using command `/start username password`")
+            slack_client.chat_postMessage(channel=channel_id, blocks=divider_block)
+        return Response(), 200
+    except Exception as e:
+        print(e)
+        return Response(), 200
+
 @app.route('/slack/session/start-private', methods=['POST'])
 def handle_start_private_session():
     data = request.form
@@ -97,8 +128,8 @@ def handle_start_private_session():
 def handle_exit_session():
     data = request.form
     channel_id = data.get("channel_id")
-    if channel_chosen_api.get(channel_id):
-        channel_chosen_api.pop(channel_id, None)
+    if channel_chosen_agent.get(channel_id):
+        channel_chosen_agent.pop(channel_id, None)
         channel_session_id.pop(channel_id, None)
         channel_vds.pop(channel_id, None)
         slack_client.chat_postMessage(channel=channel_id, text="Chat session closed")
@@ -119,7 +150,7 @@ def handle_info():
         channel_id = data.get("channel_id")
         current_vds = channel_vds.get(channel_id)
         if current_vds != None:
-            agent = channel_chosen_api.get(channel_id)
+            agent = channel_chosen_agent.get(channel_id)
             session_id = channel_session_id.get(channel_id)
             
             user_data = get_user_info(channel_id)
@@ -149,7 +180,7 @@ def handle_question():
     def handle_timeout():
         channel_id = data.get("channel_id")
         user_id = data.get("user_id")
-        chosen_api = channel_chosen_api.get(channel_id)
+        chosen_api = channel_chosen_agent.get(channel_id)
         if not chosen_api:
             slack_client.chat_postMessage(channel=channel_id, text="Please choose an API and create a session using command '/start'.")
             slack_client.chat_postMessage(channel=channel_id, blocks=divider_block)
@@ -162,18 +193,18 @@ def handle_question():
 
             def handle_reply(channel_id, user_id, chosen_api, question, session_id, ts):
                 global question_count
-                if chosen_api == "Structured Channel":
+                if chosen_api == "Analytics":
                     response_string = structured_api_call(question, session_id, channel_id)
                     if response_string == "Unauthorized":
                         update_message(channel_id, ts, "text", "Login token has expired. Please Login again using `/start username password`")
                     elif response_string != None:
                         response_block = create_structured_response_block(response_string, user_id)
                         update_message(channel_id, ts, "block", response_block)
-                        send_query_block(response_string["input"], channel_id, slack_client)
+                        send_query_block(response_string["metadata"]["input"], channel_id, slack_client)
                         question_count += 1
                     else:
                         update_message(channel_id, ts, "text", "There was some error while fetching the answer!")
-                else:
+                elif chosen_api == "Rag":
                     response_string = rag_api_call(question, session_id, channel_id)
                     if response_string == "Unauthorized":
                         update_message(channel_id, ts, "text", "Login token has expired. Please Login again using `/start username password`")
@@ -183,9 +214,39 @@ def handle_question():
                         question_count += 1
                     else:
                         update_message(channel_id, ts, "text", "There was some error while fetching the answer!")
+                else:
+                    # response_string = agent_api_call(question, channel_chosen_team_id.get(channel_id), session_id, channel_id)
+                    # if response_string == "Unauthorized":
+                    #     update_message(channel_id, ts, "text", "Login token has expired. Please Login again using `/start username password`")
+                    # elif response_string != None:
+                    #     response_block = get_agent_response_block(response_string)
+                    #     update_message(channel_id, ts, "block", response_block)
+                    # else:
+                    #     update_message(channel_id, ts, "text", "There was some error while fetching the answer!")
+
+                    display_agent_response(question, channel_chosen_team_id.get(channel_id), session_id, channel_id, ts, channel_verbose_status[channel_id])
 
             thread = Thread(target=handle_reply, args=(channel_id, user_id, chosen_api, question, session_id, response["ts"]))
             thread.start()
+
+    thread = Thread(target=handle_timeout)
+    thread.start()
+    return Response(), 200
+
+@app.route('/slack/verbose', methods=['POST'])
+def handle_verbose_status():
+    data = request.form
+    def handle_timeout():
+        channel_id = data.get("channel_id")
+        status = data.get('text')
+        if status.lower() == "on":
+            channel_verbose_status[channel_id] = True
+            slack_client.chat_postMessage(channel=channel_id, text = "Verbose is turned ON")
+        elif status.lower() == "off":
+            channel_verbose_status[channel_id] = False
+            slack_client.chat_postMessage(channel=channel_id, text = "Verbose is turned OFF")
+        else:
+            slack_client.chat_postMessage(channel=channel_id, text = "Send `/verbose ON` to turn it on and `/verbose OFF` to turn it off")
 
     thread = Thread(target=handle_timeout)
     thread.start()
@@ -196,7 +257,8 @@ def handle_message(event_data):
     def send_reply(value):     
         global question_count
         event = value["event"]
-        if event.get("subtype") is None:
+        print(event)
+        if event.get("subtype") is None or event.get("subtype") == "file_share":
             channel_type = event.get("channel_type")
             if event["user"] == bot_id:
                 return Response(status=200)
@@ -204,27 +266,48 @@ def handle_message(event_data):
                 message_text = event["text"]
                 channel_id = event["channel"]
                 user_id = event["user"]
-                chosen_api = channel_chosen_api.get(channel_id)
+                chosen_api = channel_chosen_agent.get(channel_id)
                 if not chosen_api:
                         slack_client.chat_postMessage(channel=channel_id, text="Please choose an API and create a session using command '/start'.")
                         slack_client.chat_postMessage(channel=channel_id, blocks=divider_block)
                 else:
-                        response = slack_client.chat_postMessage(channel=channel_id, text=f"Wait ⏳, Let me think 🧠and come with best response for you 🤖")
-                        slack_client.chat_postMessage(channel=channel_id, blocks=divider_block)
-                        ts = response["ts"]
-                        session_id = channel_session_id.get(channel_id)
-                        if chosen_api == "Structured Channel":
-                            response_string = structured_api_call(message_text, session_id, channel_id)
-                            if response_string == "Unauthorized":
-                                update_message(channel_id, ts, "text", "Login token has expired. Please Login again using `/start username password`")
-                            elif response_string != None:
-                                response_block = create_structured_response_block(response_string, user_id)
-                                update_message(channel_id, ts, "block", response_block)
-                                send_query_block(response_string["input"], channel_id, slack_client)
-                                question_count += 1
-                            else:
-                                update_message(channel_id, ts, "text", "There was some error while fetching the answer!")
+                        if event.get("subtype") == "file_share":
+                            response = slack_client.chat_postMessage(channel=channel_id, text="File is being uploaded 📤. Please wait!")
+                            slack_client.chat_postMessage(channel=channel_id, blocks=divider_block)
+                            ts = response["ts"]
+                            session_id = channel_session_id.get(channel_id)
+                            file_url = event["files"][0]["url_private_download"]
+                            print(file_url)
+                            filename = event["files"][0]["name"]
+                            print(filename)
+                            filename = download_file_with_consent(file_url, filename)
+                            upload_file_to_azure(filename)
+                            # response_string = agent_api_call(f'https://filestoragerag.blob.core.windows.net/slack-files/{filename}', channel_chosen_team_id.get(channel_id), session_id, channel_id)
+                            # if response_string == "Unauthorized":
+                            #     update_message(channel_id, ts, "text", "Login token has expired. Please Login again using `/start username password`")
+                            # elif response_string != None:
+                            #     response_block = get_agent_response_block(response_string)
+                            #     update_message(channel_id, ts, "block", response_block)
+                            # else:
+                            #     update_message(channel_id, ts, "text", "There was some error while fetching the answer!")
+                            display_agent_response(f'https://filestoragerag.blob.core.windows.net/slack-files/{filename}',channel_chosen_team_id.get(channel_id), session_id, channel_id, ts, channel_verbose_status[channel_id])
                         else:
+                            response = slack_client.chat_postMessage(channel=channel_id, text=f"Wait ⏳, Let me think 🧠and come with best response for you 🤖")
+                            slack_client.chat_postMessage(channel=channel_id, blocks=divider_block)
+                            ts = response["ts"]
+                            session_id = channel_session_id.get(channel_id)
+                            if chosen_api == "Analytics Assistant":
+                                response_string = structured_api_call(message_text, session_id, channel_id)
+                                if response_string == "Unauthorized":
+                                    update_message(channel_id, ts, "text", "Login token has expired. Please Login again using `/start username password`")
+                                elif response_string != None:
+                                    response_block = create_structured_response_block(response_string, user_id)
+                                    update_message(channel_id, ts, "block", response_block)
+                                    send_query_block(response_string["metadata"]["input"], channel_id, slack_client)
+                                    question_count += 1
+                                else:
+                                    update_message(channel_id, ts, "text", "There was some error while fetching the answer!")
+                            elif chosen_api == "Search Document Assistant":
                                 response_string = rag_api_call(message_text, session_id, channel_id)
                                 if response_string == "Unauthorized":
                                     update_message(channel_id, ts, "text", "Login token has expired. Please Login again using `/start username password`")
@@ -234,6 +317,17 @@ def handle_message(event_data):
                                     question_count += 1
                                 else:
                                     update_message(channel_id, ts, "text", "There was some error while fetching the answer!")
+                            else:
+                                # response_string = agent_api_call(message_text, channel_chosen_team_id.get(channel_id), session_id, channel_id)
+                                # if response_string == "Unauthorized":
+                                #     update_message(channel_id, ts, "text", "Login token has expired. Please Login again using `/start username password`")
+                                # elif response_string != None:
+                                #     response_block = get_agent_response_block(response_string)
+                                #     update_message(channel_id, ts, "block", response_block)
+                                # else:
+                                #     update_message(channel_id, ts, "text", "There was some error while fetching the answer!")
+                                display_agent_response(message_text, channel_chosen_team_id.get(channel_id), session_id, channel_id, ts, channel_verbose_status[channel_id])
+
 
     thread = Thread(target=send_reply, kwargs={"value": event_data})
     thread.start()
@@ -303,19 +397,24 @@ def slack_interactions():
                 vds_text = payload["state"]["values"]["vds_select"]["selected_vds"]["selected_option"]["text"]["text"]
                 channel_vds[channel_id] = vds_id
                 print("Set VDS: " + channel_vds.get(channel_id))
-                channel_chosen_api.pop(channel_id, None)
+                channel_chosen_agent.pop(channel_id, None)
                 channel_session_id.pop(channel_id, None)
                 update_message(channel_id, ts, "text", f"Selected VDS: {vds_text}")
-                initial_block = get_initial_block()
+                initial_block = get_initial_block(channel_id)
                 if question_count != 0:
                     slack_client.chat_postMessage(channel=channel_id, text=f"I have answered {question_count} questions successfully so far. How can I help you?")
                 slack_client.chat_postMessage(channel=channel_id, blocks=initial_block)
-            else:
+            elif payload['actions'][0]['action_id'] == "select_agent":
+                print("Agent selected")
                 vds = channel_vds[channel_id]
                 session_id = getSessionID(vds, channel_id)
-                channel_chosen_api[channel_id] = value
+                agent_team_id = payload["state"]["values"]["agent_selection"]["selected_agent"]["selected_option"]["value"]
+                agent_name = payload["state"]["values"]["agent_selection"]["selected_agent"]["selected_option"]["text"]["text"]
+                channel_chosen_agent[channel_id] = agent_name
+                channel_chosen_team_id[channel_id] = agent_team_id
                 channel_session_id[channel_id] = session_id
-                update_message(channel_id, ts, "text", f"You have opted for {value}!")
+                channel_verbose_status[channel_id] = False
+                update_message(channel_id, ts, "text", f"You have opted for {agent_name}! Verbose is currently OFF! Use command `/verbose ON` to turn it on!")
         return Response(status=200)
     except Exception as e:
         print(e)
@@ -329,12 +428,18 @@ def share_file(filename):
     return send_file(file_path, as_attachment=True)
   except FileNotFoundError:
     return "File not found", 404
+  
+# @app.route('/upload', methods=['POST'])
+# def upload_file():
+#     file = request.files['file']
+#     if file and file.filename:
+#         filename = secure_filename(file.filename)
+#         file.save(f"./files/{filename}")
+#         return f"File '{filename}' uploaded successfully!", 200
+#     else:
+#         return "No file selected for upload.", 404
 
-def update_message(channel_id, ts, choice, reply):
-    if choice == "text":
-        slack_client.chat_update(channel=channel_id, ts=ts, text=reply)
-    else:
-        slack_client.chat_update(channel=channel_id, ts=ts, blocks=reply)
+
 
 divider_block = [
 		{
