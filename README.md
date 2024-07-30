@@ -19,3 +19,132 @@ You may choose not to create a environment since we need to install only 1 libra
 4. Replace values in the `chatbot_api_wrappers.py`.  
 5. You can import the fuctions to use them. You can also reference the `main()` to understad the flow of the functions. 
 
+## Setup - adonai-chat-bot.js
+1. Include the Chat module in the body of the HTML file:
+```html
+<script src="adonai-chat-bot.js"></script>
+```
+
+2. Get `apiKey`, `host`, `machineId`, and `machinePassword` from your system admin:
+```javascript
+(function (apiKey, host, machineId, machinePassword) {
+  // ... rest of the module's code
+})(apiKey, host, machineId, machinePassword);
+```
+
+3. Utilize it in React.js:
+```jsx
+import React, { useState } from 'react';
+
+function App() {
+  const [message, setMessage] = useState('');
+  const [response, setResponse] = useState('');
+
+  const handleSendMessage = async () => {
+    try {
+      const { result } = await window.adonai.ask(message);
+      setResponse(result.result.text);
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+
+  return (
+    <div>
+      <h1>Chatbot App</h1>
+      <div>
+        <input
+          type="text"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Type your message..."
+        />
+        <button onClick={handleSendMessage}>Send</button>
+      </div>
+      <div>
+        <p>Response: {response}</p>
+      </div>
+    </div>
+  );
+}
+
+export default App;
+```
+
+4. OPTIONAL: Declare module globally:
+```typescript jsx
+declare global {
+  interface Window {
+    adonai: {
+      ask: (question: string) => Promise<{
+        status: number;
+        result: {
+          result: {
+            question: string;
+            chat_history: string;
+            query: string;
+            contexts: string;
+            text: string;
+          };
+        };
+      }>;
+    };
+  }
+}
+```
+
+## Widget setup
+1. Import style to the app:
+    ```html
+    <link rel="stylesheet" href="STYLE_SHEET_URL" />
+    ```
+
+2. Add module federation config:
+    ```javascript
+    new ModuleFederationPlugin({
+        name: 'Insights',
+        remotes: {
+            insights: `Insights@REMOTE_ENTRY_URL`,
+        },
+    })
+    ```
+
+3. Import the component:
+   ```javascript
+   const FederatedInsightsBot = React.lazy(() => import('insights/InsightsBot'));
+   ```
+
+4. Wrap the remote React component using Suspense:
+   ```javascript
+   <React.Suspense fallback={<></>}>
+      <FederatedInsightsBot 
+        authorization={{
+          APIKey: 'APIKey',
+          MachineId: 'MachineId',
+          Password: 'Password'
+        }}
+        vdsId="vdsID"
+      />
+   </React.Suspense>
+   ```
+
+5. OPTIONAL: Declare module globally:
+   ```typescript jsx
+   declare module 'insights/InsightsBot' {
+      interface Authorization {
+        MachineId: string;
+        Password: string;
+        APIKey: string;
+      }
+   
+      const FederatedInsightsBot: React.ComponentType<{
+         authorization: Authorization,
+         vdsId: string;
+         rootUrl?: string;
+         chatClassName?: string;
+         iconClassName?: string;
+      }>;
+
+      export default FederatedInsightsBot;
+   }
+   ```
