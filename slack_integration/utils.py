@@ -155,7 +155,7 @@ def get_vds_list(channel_id):
         headers = {
             "Authorization": f"Bearer {access_token}"
         }
-        api_url = os.environ.get("BASE_API") + f'/vdsservice/vds/list'
+        api_url = os.environ.get("BASE_API") + f'/vdsservice/vds/list?page=1&size=30'
 
         response = requests.get(api_url, headers=headers)
         if response.status_code == 200:
