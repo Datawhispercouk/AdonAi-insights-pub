@@ -446,7 +446,6 @@ def get_rag_response_text(response_string):
             link = reference["source"]
             page = reference["page"]
             response_text = response_text + f"<{link}> (page {page})" + "\n\n"
-        # response_text = response_text + "<https://www.example.com/Test Document.pdf> (page 1) \n\n"
     if response_string["metadata"]["safeguard"] != {}:
         if response_string["metadata"]["safeguard"]["input_validation"] != []  or response_string["metadata"]["safeguard"]["output_validation"] != []:
             response_text = response_text + "\n\nSafeguard Checks:\n\n"
@@ -476,6 +475,7 @@ def get_rag_response_text(response_string):
                 } 
         }
     )
+    print(response_block)
     return response_block
 
 def get_agent_response_block(response_string):
