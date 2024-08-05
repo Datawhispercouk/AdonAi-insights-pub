@@ -210,7 +210,7 @@ def handle_question():
                         update_message(channel_id, ts, "text", "Login token has expired. Please Login again using `/start username password`")
                     elif response_string != None:
                         response_text = get_rag_response_text(response_string)
-                        update_message(channel_id, ts, "text", "```" + response_text + "```")
+                        update_message(channel_id, ts, "block", response_text)
                         question_count += 1
                     else:
                         update_message(channel_id, ts, "text", "There was some error while fetching the answer!")
@@ -313,7 +313,7 @@ def handle_message(event_data):
                                     update_message(channel_id, ts, "text", "Login token has expired. Please Login again using `/start username password`")
                                 elif response_string != None:
                                     response_text = get_rag_response_text(response_string)
-                                    update_message(channel_id, ts, "text", "```" + response_text + "```")
+                                    update_message(channel_id, ts, "block", response_text)
                                     question_count += 1
                                 else:
                                     update_message(channel_id, ts, "text", "There was some error while fetching the answer!")

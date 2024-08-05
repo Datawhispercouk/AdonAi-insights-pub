@@ -455,7 +455,17 @@ def get_rag_response_text(response_string):
                         response_text = response_text + f"✔️ {policy}" + "\n"
                     else:
                         response_text = response_text + f"❌ {policy}" + "\n"
-    return response_text
+
+    response_block = [
+        {
+            "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "```" + response_text + "```",
+                } 
+        }
+    ]
+    return response_block
 
 def get_agent_response_block(response_string):
     response_block = []
