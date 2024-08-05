@@ -427,7 +427,10 @@ def send_query_block(input, channel_id, slack_client):
     slack_client.chat_postMessage(channel=channel_id, blocks=query_block)
 
 def get_rag_response_text(response_string):
-    response_text = response_string["content"][:2500]
+    if(len(response_string["content"]) > 2500):
+        response_text = response_string["content"][:2500]
+    else:
+        response_text = response_string["content"]
     response_block = []
     response_block.append(
         {
