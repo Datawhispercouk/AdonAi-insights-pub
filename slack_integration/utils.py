@@ -428,14 +428,25 @@ def send_query_block(input, channel_id, slack_client):
 
 def get_rag_response_text(response_string):
     response_text = response_string["content"]
+    response_block = []
+    response_block.append(
+        {
+            "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "```" + response_text + "```",
+                } 
+        }
+    )
+    response_text = ""
     if response_string["metadata"]["references"] != []:
-        response_text = response_text + "\n\n\nReferences:\n\n"
-        # for reference in response_string["metadata"]["references"]:
-        #     print(reference)
-        #     link = reference["source"]
-        #     page = reference["page"]
-        #     response_text = response_text + f"<{link}> (page {page})" + "\n\n"
-        response_text = response_text + "<https://www.example.com/Test Document.pdf> (page 1) \n\n"
+        response_text = response_text + "References:\n\n"
+        for reference in response_string["metadata"]["references"]:
+            print(reference)
+            link = reference["source"]
+            page = reference["page"]
+            response_text = response_text + f"<{link}> (page {page})" + "\n\n"
+        # response_text = response_text + "<https://www.example.com/Test Document.pdf> (page 1) \n\n"
     if response_string["metadata"]["safeguard"] != {}:
         if response_string["metadata"]["safeguard"]["input_validation"] != []  or response_string["metadata"]["safeguard"]["output_validation"] != []:
             response_text = response_text + "\n\nSafeguard Checks:\n\n"
@@ -456,7 +467,7 @@ def get_rag_response_text(response_string):
                     else:
                         response_text = response_text + f"❌ {policy}" + "\n"
 
-    response_block = [
+    response_block.append(
         {
             "type": "section",
                 "text": {
@@ -464,7 +475,7 @@ def get_rag_response_text(response_string):
                     "text": "```" + response_text + "```",
                 } 
         }
-    ]
+    )
     return response_block
 
 def get_agent_response_block(response_string):
