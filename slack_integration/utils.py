@@ -430,11 +430,11 @@ def get_rag_response_text(response_string):
     response_text = response_string["content"]
     if response_string["metadata"]["references"] != []:
         response_text = response_text + "\n\n\nReferences:\n\n"
-        for reference in response_string["metadata"]["references"]:
-            print(reference)
-            link = reference["source"]
-            page = reference["page"]
-            response_text = response_text + f"<{link}> (page {page})" + "\n\n"
+        # for reference in response_string["metadata"]["references"]:
+        #     print(reference)
+        #     link = reference["source"]
+        #     page = reference["page"]
+        #     response_text = response_text + f"<{link}> (page {page})" + "\n\n"
         response_text = response_text + f"<www.example.com/Test Document.pdf> (page 1)" + "\n\n"
     if response_string["metadata"]["safeguard"] != {}:
         if response_string["metadata"]["safeguard"]["input_validation"] != []  or response_string["metadata"]["safeguard"]["output_validation"] != []:
