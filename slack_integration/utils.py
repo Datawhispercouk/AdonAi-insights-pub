@@ -434,7 +434,7 @@ def get_rag_response_text(response_string):
             print(reference)
             link = reference["source"]
             page = reference["page"]
-            response_text = response_text + f"{link} (page {page})" + "\n\n"
+            response_text = response_text + f"<{link}> (page {page})" + "\n\n"
     if response_string["metadata"]["safeguard"] != {}:
         if response_string["metadata"]["safeguard"]["input_validation"] != []  or response_string["metadata"]["safeguard"]["output_validation"] != []:
             response_text = response_text + "\n\nSafeguard Checks:\n\n"
@@ -480,7 +480,7 @@ def get_agent_response_block(response_string):
                     print(reference)
                     link = reference["source"]
                     page = reference["page"]
-                    response_text = response_text + f"{link} (page {page})" + "\n\n"
+                    response_text = response_text + f"<{link}> (page {page})" + "\n\n"
                 reference_section = {
                     "type": "section",
                         "text": {
@@ -622,7 +622,7 @@ def display_agent_response(question, team_id, session_id, channel_id, ts, verbos
                                     for reference in value:
                                         link = reference["source"]
                                         page = reference["page"]
-                                        response_text += f"{link} (page {page})\n\n"
+                                        response_text += f"<{link}> (page {page})\n\n"
                                     reference_section = {
                                         "type": "section",
                                         "text": {
