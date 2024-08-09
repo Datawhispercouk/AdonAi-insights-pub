@@ -93,14 +93,12 @@ declare global {
 }
 ```
 
-## Widget setup
-1. Import style to the app:
-    ```html
-    <link rel="stylesheet" href="STYLE_SHEET_URL" />
-    ```
+## Widget Setup Guide
+1. **Add Module Federation Configuration**
 
-2. Add module federation config:
-    ```javascript
+   To begin integrating the `FederatedInsightsBot` into your application, you'll need to configure Module Federation. This allows the remote module to be seamlessly included in your project.
+    
+   ```javascript
     new ModuleFederationPlugin({
         name: 'Insights',
         remotes: {
@@ -109,26 +107,34 @@ declare global {
     })
     ```
 
-3. Import the component:
+2. **Import the Federated Component**
+   
+   Next, import the `FederatedInsightsBot` component from the remote module using `React.lazy`. This enables dynamic import, which only loads the component when it is rendered.
+   
    ```javascript
    const FederatedInsightsBot = React.lazy(() => import('insights/InsightsBot'));
    ```
 
-4. Wrap the remote React component using Suspense:
+3. **Wrap the Remote Component with `React.Suspense`**
+
+   To handle the loading state, wrap the `FederatedInsightsBot` component within `React.Suspense`. This ensures that the UI doesn't break while the remote component is being loaded.
+   
    ```javascript
    <React.Suspense fallback={<></>}>
       <FederatedInsightsBot 
         authorization={{
-          APIKey: 'APIKey',
-          MachineId: 'MachineId',
-          Password: 'Password'
+          username: 'username',
+          password: 'password'
         }}
         vdsId="vdsID"
       />
    </React.Suspense>
    ```
 
-5. OPTIONAL: Declare module globally:
+4. **OPTIONAL: Declare Module Globally**
+
+   If you prefer to have TypeScript support for the remote module, you can declare the module globally. This declaration helps with type-checking and autocompletion within your development environment.
+   
    ```typescript jsx
    declare module 'insights/InsightsBot' {
       interface Authorization {
@@ -141,10 +147,58 @@ declare global {
          authorization: Authorization,
          vdsId: string;
          rootUrl?: string;
+         isVisible?: boolean;
          chatClassName?: string;
          iconClassName?: string;
+         placeholder?: string;
       }>;
 
       export default FederatedInsightsBot;
    }
+   ```
+
+### Example Implementation
+
+   Below is an example of how to integrate the `FederatedInsightsBot` widget into your application. This example demonstrates how to render the bot and toggle its visibility.
+
+   ```javascript
+   require('bootstrap');
+
+   import React, { Suspense } from 'react';
+   import ReactDOM from 'react-dom/client';
+   
+   const FederatedInsightsBot = React.lazy(() => import('insights/InsightsBot'));
+   
+   let isVisible = false;
+   
+   const renderBot = () => {
+     const container = document.getElementById('insights-bot');
+     const root = ReactDOM.createRoot(container);
+   
+     const widget = (
+       <Suspense fallback={<></>}>
+         <FederatedInsightsBot
+           authorization={{
+           username: 'username',
+           password: 'password'
+           }}
+           vdsId="vdsId"
+           rootUrl='/'
+           isVisible={isVisible}
+           chatClassName='chat-class-name'
+           iconClassName='icon-class-name'
+           placeholder='Input placeholder'
+         />
+       </Suspense>
+     );
+   
+     root.render(widget);
+   };
+   
+    document.getElementById('toggle-button').onclick = () => {
+     isVisible = !isVisible;
+     renderBot();
+   };
+                 
+   renderBot();
    ```
