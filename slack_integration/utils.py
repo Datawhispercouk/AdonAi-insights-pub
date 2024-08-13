@@ -232,9 +232,20 @@ def create_graph(data, user_id):
         print("figure created:")
         image_data = pio.to_image(fig, format='jpg', engine="orca", scale=1)
         print("image_data created")
+        print(filename)
+
         with open(f"./images/{filename}", 'wb') as f:
             f.write(image_data)
-        return filename
+            
+        CONNECTION_STRING = os.environ.get("CONNECTION_STRING")
+        blob_service_client = BlobServiceClient.from_connection_string(CONNECTION_STRING)
+        container_client = blob_service_client.get_container_client("slack-files")
+        blob_client = container_client.get_blob_client(filename)
+        blob_client.upload_blob(image_data)
+
+        file_url = blob_client.url
+
+        return file_url
     except Exception as e:
         print(f"Error creating graph: {e}")
         return None
@@ -242,16 +253,16 @@ def create_graph(data, user_id):
 def create_structured_response_block(response_string, user_id):
     response_block = []
     if response_string["metadata"]["figure"] != "":
-        image_filename = create_graph(response_string["metadata"]["figure"], user_id)
+        image_file_url = create_graph(response_string["metadata"]["figure"], user_id)
         base_url = os.environ.get("BASE_FLASK_APP_URL")
-        if image_filename:
+        if image_file_url:
             graph_section = {
                 "type": "image",
                     "title": {
                         "type": "plain_text",
                         "text": "Graph:"
                     },
-                    "image_url": f"{base_url}/share/{image_filename}",
+                    "image_url": f"{image_file_url}",
                     "alt_text": "graph"
             }
             response_block.append(graph_section)
