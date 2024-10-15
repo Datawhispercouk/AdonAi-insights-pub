@@ -451,7 +451,7 @@ def get_rag_response_text(response_string):
             "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": "```" + response_text + "```",
+                    "text": response_text,
                 } 
         }
     )
@@ -488,7 +488,7 @@ def get_rag_response_text(response_string):
             "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": "```" + response_text + "```",
+                    "text": response_text,
                 } 
         }
     )
